@@ -38,13 +38,11 @@ def main(data_dir,output,name,server):
     lasttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
     # send request
     url = ('http://%s/predict' % server)
-    r = requests.post(
-        url,
-        data = json.dumps({"instances":[{"gpu_0/data_0": data.astype(np.float32).tolist()}]}))
-
-    # Return result
-    if r.status_code != 200:
-        print("error")
+    try:
+        r = requests.post(url,
+            data = json.dumps({"instances":[{"gpu_0/data_0": data.astype(np.float32).tolist()}]}))
+    except Exception:
+        print("serving error.")
         result = {
         "name":name,
         "accuracy":"0.0",
