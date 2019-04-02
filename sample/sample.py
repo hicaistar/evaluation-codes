@@ -46,8 +46,6 @@ def main(data_dir,output,name,server):
         result = {
         "name":name,
         "accuracy":"0.0",
-        "succeeded":"false",
-        "lastTime":lasttime,
         }
     else:
         result_json = json.loads(r.text)
@@ -57,8 +55,6 @@ def main(data_dir,output,name,server):
         result = {
         "name":name,
         "accuracy":"0.9",
-        "succeeded":"true",
-        "lastTime":lasttime,
         }
     # write result
     filename = ("%s.json" % name)
