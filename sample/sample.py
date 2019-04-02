@@ -19,7 +19,11 @@ def main(data_dir,output,name,server):
     print("data dir:",data_dir)
     files = os.listdir(data_dir)
     print("get files:",files)
-    first = files[0]
+    images = []
+    for file in files:
+        if os.path.splitext(file)[1] == '.png':
+            images.append(file)
+    first = images[0]
     image = Image.open(os.path.join(data_dir, first))
     img = image.resize((224,224))
     raw_data = np.array(img)/255.0
