@@ -47,7 +47,7 @@ def main(data_dir,output,name,server):
         "name":name,
         "accuracy":"0.0",
         "succeeded":"false",
-        "time":time,
+        "lastTime":lasttime,
         }
     else:
         result_json = json.loads(r.text)
@@ -58,7 +58,7 @@ def main(data_dir,output,name,server):
         "name":"predicition",
         "accuracy":"0.9",
         "succeeded":"true",
-        "time":time,
+        "lastTime":lasttime,
         }
     # write result
     file = os.path.join(output,'prediction.json')
