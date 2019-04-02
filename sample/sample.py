@@ -55,13 +55,14 @@ def main(data_dir,output,name,server):
         idx, _ = max(enumerate(result[0][0]), key = operator.itemgetter(1))
         print("idx:",idx)
         result = {
-        "name":"predicition",
+        "name":name,
         "accuracy":"0.9",
         "succeeded":"true",
         "lastTime":lasttime,
         }
     # write result
-    file = os.path.join(output,'prediction.json')
+    filename = ("%s.json" % name)
+    file = os.path.join(output,filename)
     with open(file, 'w') as f:
         json.dump(result, f)
 
