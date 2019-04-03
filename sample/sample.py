@@ -7,15 +7,13 @@ import argparse
 import time
 from PIL import Image
 
-parser = argparse.ArgumentParser(description='Process args for evaluation')
-parser.add_argument("--output", "-o", help="set output directory")
-parser.add_argument("--data", "-d", help="set dataset directory")
-parser.add_argument("--name","-n", help="set function name")
-parser.add_argument("--server","-s", help="set serving server address")
+def metric():
+    result = {
+    "accuracy":"0.9"
+    }
+    return result
 
-args = parser.parse_args()
-
-def main(data_dir,output,name,server):
+def load_data(data_dir):
     print("data dir:",data_dir)
     files = os.listdir(data_dir)
     print("get files:",files)
@@ -33,9 +31,11 @@ def main(data_dir,output,name,server):
     data = np.divide(data, np.array([0.229,0.224,0.225]))
     data = np.moveaxis(data, 2, 0)
     data = np.expand_dims(data, 0)
+    return data
 
-    # format time 2016-03-20 11:45:39
-    lasttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+def main(data_dir,output,name,server):
+
+    data = load_data()
     # send request
     url = ('http://%s/predict' % server)
     try:
@@ -43,19 +43,23 @@ def main(data_dir,output,name,server):
             data = json.dumps({"instances":[{"gpu_0/data_0": data.astype(np.float32).tolist()}]}))
     except Exception:
         print("serving error.")
-        result = {
-        "name":name,
-        "accuracy":"0.0",
-        }
     else:
-        result_json = json.loads(r.text)
-        result = result_json['predictions'] if 'predictions' in result_json else result_json['outputs']
-        idx, _ = max(enumerate(result[0][0]), key = operator.itemgetter(1))
-        print("idx:",idx)
-        result = {
-        "name":name,
-        "accuracy":"0.9",
-        }
+        if r.status_code != 200:
+            print("status:",r.content)
+            result = {
+            "name":name,
+            "result":"error"
+            }
+        else:
+            result_json = json.loads(r.text)
+            result = result_json['predictions'] if 'predictions' in result_json else result_json['outputs']
+            idx, _ = max(enumerate(result[0][0]), key = operator.itemgetter(1))
+            print("idx:",idx)
+            res = ("%s" % metric())
+            result = {
+            "name":name,
+            "result":res,
+            }
     # write result
     filename = ("%s.json" % name)
     file = os.path.join(output,filename)
@@ -64,8 +68,11 @@ def main(data_dir,output,name,server):
 
 
 if __name__ == "__main__":
-    data_dir = args.data
-    output = args.output
-    name = args.name
-    server = args.server
-    main(data_dir,output,name,server)
+    parser = argparse.ArgumentParser(description='Process args for evaluation')
+    parser.add_argument("--output", "-o", help="set output directory")
+    parser.add_argument("--data", "-d", help="set dataset directory")
+    parser.add_argument("--name","-n", help="set function name")
+    parser.add_argument("--server","-s", help="set serving server address")
+    args = parser.parse_args()
+
+    main(args.data,args.output,args.name,args.server)
