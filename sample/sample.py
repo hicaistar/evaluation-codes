@@ -35,7 +35,7 @@ def load_data(data_dir):
 
 def main(data_dir,output,name,server):
 
-    data = load_data()
+    data = load_data(data_dir)
     # send request
     url = ('http://%s/predict' % server)
     try:
