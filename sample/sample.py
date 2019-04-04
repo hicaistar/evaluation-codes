@@ -8,8 +8,10 @@ import time
 from PIL import Image
 
 def metric():
+    lasttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
     result = {
-    "accuracy":"0.9"
+    "accuracy":"0.9",
+    "updatetime": lasttime
     }
     return result
 
