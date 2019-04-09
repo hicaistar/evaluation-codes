@@ -57,7 +57,7 @@ def main(data_dir,output,name,server):
             result = result_json['predictions'] if 'predictions' in result_json else result_json['outputs']
             idx, _ = max(enumerate(result[0][0]), key = operator.itemgetter(1))
             print("idx:",idx)
-            res = ("%s" % metric())
+            res = json.dumps(metric())
             result = {
             "name":name,
             "result":res,
