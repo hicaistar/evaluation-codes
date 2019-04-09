@@ -62,11 +62,11 @@ def main(data_dir,output,name,server):
             "name":name,
             "result":res,
             }
-    # write result
-    filename = ("%s.json" % name)
-    file = os.path.join(output,filename)
-    with open(file, 'w') as f:
-        json.dump(result, f)
+        # write result
+        filename = ("%s.json" % name)
+        file = os.path.join(output,filename)
+        with open(file, 'w') as f:
+            json.dump(result, f)
 
 
 if __name__ == "__main__":
