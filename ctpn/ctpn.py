@@ -10,11 +10,10 @@ import sys
 import csv
 from PIL import Image
 
-sys.path.insert(1,'./utils')
-import utils
-import text_proposal_connector as text_connect
-import metrics
-from text_detector_api import TextLineDetectorClient,Textimage_Generator
+import utils.utils as utils
+import utils.text_proposal_connector as text_connect
+import utils.metrics as metrics
+from utils.text_detector_api import TextLineDetectorClient,Textimage_Generator
 
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
