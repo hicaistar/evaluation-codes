@@ -44,7 +44,7 @@ def main(data_dir,output,name,server):
         r = requests.post(url,
             data = json.dumps({"instances":[{"gpu_0/data_0": data.astype(np.float32).tolist()}]}))
     except Exception:
-        print("serving error.")
+        raise Exception("serving error.")
     else:
         if r.status_code != 200:
             print("status:",r.content)
@@ -64,8 +64,8 @@ def main(data_dir,output,name,server):
             }
         # write result
         filename = ("%s.json" % name)
-        file = os.path.join(output,filename)
-        with open(file, 'w') as f:
+        file_path = os.path.join(output,filename)
+        with open(file_path, 'w') as f:
             json.dump(result, f)
 
 

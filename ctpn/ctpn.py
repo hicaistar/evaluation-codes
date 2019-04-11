@@ -111,8 +111,8 @@ class Evaluation:
             "result":res,
         }
         filename = ("%s.json" % self.name)
-        file = os.path.join(self.output,filename)
-        with open(file, 'w') as f:
+        file_path = os.path.join(self.output,filename)
+        with open(file_path, 'w') as f:
             json.dump(out, f)
 
 if __name__ == "__main__":
