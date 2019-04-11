@@ -80,8 +80,8 @@ def execute_evaluation(evaluation):
         precision2,recall2 = evaluate(text,label)
         break
     result = {
-    'precision': precision2,
-    'recall': recall2
+    "precision": precision2,
+    "recall": recall2
     }
     evaluation.write_output(result)
     print('precision %04f,recall %04f'%(precision2,recall2))

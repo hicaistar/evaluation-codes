@@ -12,11 +12,11 @@ def load_data(data_dir):
 
 def execute_evaluation(evaluation):
     # add user code here:
-    data = load_data(evaluation.data)
-    payload = {"instances":[{"input": data.astype(np.float32).tolist()}]}
-    response = evaluation.post_request(payload)
-    result = metrics(response)
-    evaluation.write_output(result)
+    # 1. data = load_data(evaluation.data)
+    # 2. payload = {"instances":[{"input": data.astype(np.float32).tolist()}]}
+    # 3. response = evaluation.post_request(payload)
+    # 4. result = metrics(response)
+    # 5. evaluation.write_output(result)
 
 class Evaluation:
     def __init__(self, function, data, server, output):
@@ -28,7 +28,7 @@ class Evaluation:
     def post_request(self,payload):
         response = requests.post(self.server, payload)
         if response.status_code == 200:
-            result_json = json.loads(r.text)
+            result_json = json.loads(response.text)
             result = result_json['predictions'] if 'predictions' in result_json else result_json['outputs']
             return result
         else:
