@@ -21,9 +21,9 @@ class TextLineDetector(object):
         self.basemodel.load_weights(model_path)
         self.threshold = threshold
     def textline_extract(self,image):
-        assert len(image.shape) == 3 
+        assert len(image.shape) == 3
         h,w,c= image.shape
-        #zero-center by mean pixel 
+        #zero-center by mean pixel
         m_img = image - utils.IMAGE_MEAN
 
         m_img = np.expand_dims(m_img,axis=0)
@@ -61,7 +61,7 @@ class TextLineDetector(object):
         end = time.time()
 
         text = list(text.astype('int32'))
-        
+
         return text
 
 class Textimage_Generator(keras.utils.Sequence):
@@ -70,8 +70,8 @@ class Textimage_Generator(keras.utils.Sequence):
         ''' data_dir: path images data
             txt_dir: path bounding box data
             batch_size: generate batch size
-            background_ratio: the ratio for only backgroud images, which no bounding 
-                              boxes in the samples 
+            background_ratio: the ratio for only backgroud images, which no bounding
+                              boxes in the samples
         '''
         self.data_dir = data_dir
         self.txt_dir = txt_dir
@@ -79,11 +79,11 @@ class Textimage_Generator(keras.utils.Sequence):
         self.shuffle = shuffle
         self.input_size = 512
         self.on_epoch_end()
-        
+
     def __len__(self):
         return len(self.img_paths)
-    
-    
+
+
     def on_epoch_end(self):
         'Updates indexes after each epoch'
         self.indexes = np.arange(len(self.img_paths))
@@ -96,7 +96,7 @@ class Textimage_Generator(keras.utils.Sequence):
             files.extend(glob.glob(
                 os.path.join(self.data_dir, '*.{}'.format(ext))))
         return files
-    
+
     def load_annoataion(self,path):
         '''
         load annotation from the text file
@@ -118,7 +118,7 @@ class Textimage_Generator(keras.utils.Sequence):
                 text_polys.append([ x1, y1, x2, y2, x3, y3, x4, y4])
                 text_tags.append(label)
             return np.array(text_polys, dtype=np.float32), np.array(text_tags)
-        
+
     def get_txt(self,img_path):
         txt_name = os.path.basename(img_path).replace(os.path.splitext(img_path)[-1], '.txt')
         txt_path = os.path.join(self.txt_dir,txt_name)
@@ -136,7 +136,7 @@ class Textimage_Generator(keras.utils.Sequence):
         if not os.path.exists(txt_fn):
             raise IOError('the file %s is not exist'%s)
         text_polys, text_tags = self.load_annoataion(txt_fn)
-        return img,text_polys   
+        return img,text_polys
 
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -154,19 +154,19 @@ class TextLineDetectorClient(object):
         predict_request = json.dumps(param,cls=NumpyEncoder)
         response = requests.post(self.server_url, data=predict_request)
         response.raise_for_status()
-        
+
     def textline_extract(self,image):
-        assert len(image.shape) == 3 
+        assert len(image.shape) == 3
         h,w,c= image.shape
-        #zero-center by mean pixel 
+        #zero-center by mean pixel
         m_img = image - utils.IMAGE_MEAN
-        
+
 #         m_img = np.expand_dims(m_img,axis=0)
         p_data0 = {'inputs_1':m_img}
         param = {"instances":[p_data0]}
         predict_request = json.dumps(param,cls=NumpyEncoder)
         start = time.time()
-        
+
         response = requests.post(self.server_url, data=predict_request)
         response.raise_for_status()
         prediction = response.json()['predictions'][0]
@@ -206,9 +206,9 @@ class TextLineDetectorClient(object):
         end = time.time()
 
         text = list(text.astype('int32'))
-        
+
         return text
-    
+
     def evaluate(self,image,gt_text):
         text = self.textline_extract(image)
         pred_text = [txt_item[:8] for txt_item in text]
