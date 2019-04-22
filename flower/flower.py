@@ -2,16 +2,26 @@ import os
 import json
 import argparse
 import requests
+import operator
+import numpy as np
+# tensorflow-1.12.0
 import tensorflow as tf
 
-def input_fn(tfrecords_path,batch_size=1):
-    dataset = tf.data.TFRecordDataset(tfrecords_path)
-    dataset = dataset.map(parser)
-#     dataset = dataset.batch(batch_size)
-    iterator = dataset.make_one_shot_iterator()
-    return iterator
+# User codes
+def metrics(y_predicted, y_ground_truth):
+    assert len(y_predicted) == len(y_ground_truth)
+    acc_num = 0
+    for i in range(len(y_predicted)):
+        result = y_predicted[i]
+        idx, _ = max(enumerate(result[0][0]), key = operator.itemgetter(1))
+        if idx == y_ground_truth[i]:
+            acc_num = acc_num + 1
+    accuracy = float(acc_num)/float(len(y_predicted))
+    accuracy = str(accuracy)
+    print("accuracy:",accuracy)
+    return {'accuracy': accuracy}
 
-def parser(record):
+def tf_parser(record):
     features = tf.parse_single_example(record,features={
     'image_raw':tf.FixedLenFeature([],tf.string),
     'label': tf.FixedLenFeature([],tf.int64),
@@ -33,99 +43,109 @@ def parser(record):
     image = tf.multiply(image, 2.0)
     return image,label
 
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return json.JSONEncoder.default(self, obj)
+def load_data(data_dir, input_list, input_size_list, dtype_list):
+    assert len(input_list) == len(input_size_list)
+    assert len(input_list) == len(dtype_list)
+    # tfrecord data
+    filename = os.path.join(data_dir,'train_v1.tfrecord')
+    dataset = tf.data.TFRecordDataset(filename)
+    dataset = dataset.map(tf_parser)
+    iterator = dataset.make_one_shot_iterator()
+    x, label = iterator.get_next()
 
-
-def execute_evaluation(evaluation):
-    # add user code here:
-    # 1. data = load_data(evaluation.data)
-    # 2. payload = {"instances":[{"input": data.astype(np.float32).tolist()}]}
-    # 3. response = evaluation.post_request(payload)
-    # 4. result = metrics(response)
-    # 5. evaluation.write_output(result)
-    iterator = input_fn(FLAGS.tfrecords_path)
-    x,label = iterator.get_next()
-    logits = tf.placeholder(tf.float32,[None,5])
-    acc, acc_op = tf.metrics.accuracy(labels=label, predictions=tf.argmax(logits,axis=1))
-    greater = tf.cast(tf.math.greater(logits,0.5),tf.int64)
-    precision,pre_op = tf.metrics.precision_at_k(tf.cast(tf.expand_dims(tf.one_hot(label,depth=5),axis=0),tf.int64), k=4,predictions=greater)
-    ## 设置 init 和 saver,
-    init = [tf.global_variables_initializer(),tf.local_variables_initializer()]
     with tf.Session() as sess:
-        sess.run(init)
-        # edited
-        temp_x,temp_label = sess.run([x,label])
-        p_data0 = {'inputs_1':temp_x}
-        param = {"instances":[p_data0]}
-        predict_request = json.dumps(param,cls=NumpyEncoder)
-        prediction = evaluation.post_request(predict_request)
+        try:
+            while True:
+                input_data, ground_truth = sess.run([x, label])
+                input_data = np.expand_dims(input_data, 0)
+                feature = lambda s, t: input_data.astype(dtype=t).tolist()
+                yield {
+                    input_list[i]: feature(input_size_list[i], tf.as_dtype(dtype_list[i]).as_numpy_dtype)
+                    for i in range(len(input_list))
+                }, ground_truth
+        except tf.errors.OutOfRangeError as e:
+            print("finish all data.")
 
-        temp_logits = np.array([prediction])
-        temp_acc,_ = sess.run([acc,acc_op],feed_dict={label:temp_label,logits:temp_logits})
-        print('accuracy: %f,precision: %f'%(temp_acc,temp_pre))
-
-
-        # try:
-        #     while True:
-        #         temp_x,temp_label = sess.run([x,label])
-        #         p_data0 = {'inputs_1':temp_x}
-        #         param = {"instances":[p_data0]}
-        #         predict_request = json.dumps(param,cls=NumpyEncoder)
-        #         response = evaluation.post_request(predict_request)
-
-        #         # response = requests.post(FLAGS.SERVER_URL, data=predict_request)
-        #         # response.raise_for_status()
-        #         prediction = response.json()['predictions'][0]
-        #         temp_logits = np.array([prediction])
-        #         temp_acc,_ = sess.run([acc,acc_op],
-        #                               feed_dict={label:temp_label,
-        #                                         logits:temp_logits})
-        # except tf.errors.OutOfRangeError as info:
-        #     print('accuracy: %f,precision: %f'%(temp_acc,temp_pre))
-
-
+# Don't edit, provided by the platform.
 class Evaluation:
-    def __init__(self, function, data, server, output):
-        self.name = function
+    def __init__(self, name, data, server, output, manifest):
+        self.name = name
         self.server = server
         self.data = data
         self.output = output
+        self.manifest = manifest
+        self.input_list = []
+        self.input_size_list = []
+        self.dtype_list = []
 
-    def post_request(self,payload):
+    def execute(self):
+        self._parse_manifest()
+        response_list = []
+        ground_truth_list = []
+        for feature, ground_truth in load_data(self.data, self.input_list,
+                                               self.input_size_list,
+                                               self.dtype_list):
+            try:
+                payload = json.dumps({"instances": [feature]})
+                response = self._post_request(payload)
+            except Exception as e:
+                print(e)
+                response_list.append(None)
+            else:
+                response_list.append(response)
+            ground_truth_list.append(ground_truth)
+        try:
+            result = metrics(response_list, ground_truth_list)
+        except Exception as e:
+            raise RuntimeError('metrics fails!')
+        else:
+            self._write_output(result)
+
+    def _parse_manifest(self):
+        with open(self.manifest, 'r') as f:
+            manifest = json.load(f)
+            for i, val in enumerate(manifest['spec']['inputs']):
+                if val['name'] in self.input_list:
+                    continue
+                self.input_list.append(val['name'])
+                self.input_size_list.append(val['dimValue'])
+                self.dtype_list.append(val['dataType'])
+
+    def _post_request(self, payload):
         response = requests.post(self.server, payload)
         if response.status_code == 200:
             result_json = json.loads(response.text)
-            result = result_json['predictions'] if 'predictions' in result_json else result_json['outputs']
+            result = result_json[
+                'predictions'] if 'predictions' in result_json else result_json[
+                    'outputs']
             return result
         else:
-            print("serving error:",response.text)
+            print("serving error:", response.text)
             return ''
 
-    def write_output(self,result):
+    def _write_output(self, result):
         res = json.dumps(result)
         out = {
             "name": self.name,
-            "result":res,
+            "result": res,
         }
         filename = ("%s.json" % self.name)
-        file = os.path.join(self.output,filename)
+        file = os.path.join(self.output, filename)
         with open(file, 'w') as f:
             json.dump(out, f)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process args for evaluation')
     parser.add_argument("--output", "-o", help="set output directory")
     parser.add_argument("--data", "-d", help="set dataset directory")
-    parser.add_argument("--name","-n", help="set function name")
-    parser.add_argument("--server","-s", help="set serving server address")
+    parser.add_argument("--name", "-n", help="set function name")
+    parser.add_argument("--server", "-s", help="set serving server address")
+    parser.add_argument("--manifest", "-m", help="set the manifest path of model")
     args = parser.parse_args()
 
     server = "http://{s}/predict".format(s=args.server)
 
-    evaluation = Evaluation(args.name, args.data, server, args.output)
+    evaluation = Evaluation(args.name, args.data, server, args.output, args.manifest)
 
-    execute_evaluation(evaluation)
+    evaluation.execute()
